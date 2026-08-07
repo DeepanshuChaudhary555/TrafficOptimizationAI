@@ -7,6 +7,8 @@ import {
   Gear,
 } from "react-bootstrap-icons";
 
+import { NavLink } from "react-router-dom";
+
 function Sidebar() {
   return (
     <div
@@ -22,35 +24,65 @@ function Sidebar() {
 
       <div className="d-flex flex-column gap-3">
 
-        <a href="#" className="text-light">
-          <House className="me-2" />
-          Dashboard
-        </a>
+        <NavLink
+            to="/"
+            className={({ isActive }) =>
+                `sidebar-link ${isActive ? "active-link" : ""}`
+            }
+        >
+            <House className="me-2" />
+            Dashboard
+        </NavLink>
 
-        <a href="#" className="text-light">
-          <Upload className="me-2" />
-          Upload
-        </a>
+        <NavLink
+            to="/upload"
+            className={({ isActive }) =>
+                `sidebar-link ${isActive ? "active-link" : ""}`
+            }
+        >
+            <Upload className="me-2" />
+            Upload
+        </NavLink>
 
-        <a href="#" className="text-light">
-          <CameraVideo className="me-2" />
-          Detection
-        </a>
+        <NavLink
+            to="/detection"
+            className={({ isActive }) =>
+                `sidebar-link ${isActive ? "active-link" : ""}`
+            }
+        >
+            <CameraVideo className="me-2" />
+            Detection
+        </NavLink>
 
-        <a href="#" className="text-light">
-          <BarChart className="me-2" />
-          Analytics
-        </a>
+        <NavLink
+            to="/analytics"
+            className={({ isActive }) =>
+                `sidebar-link ${isActive ? "active-link" : ""}`
+            }
+        >
+            <BarChart className="me-2" />
+            Analytics
+        </NavLink>
 
-        <a href="#" className="text-light">
-          <FileEarmarkText className="me-2" />
-          Reports
-        </a>
+        <NavLink
+            to="/reports"
+            className={({ isActive }) =>
+                `sidebar-link ${isActive ? "active-link" : ""}`
+            }
+        >
+            <FileEarmarkText className="me-2" />
+            Reports
+        </NavLink>
 
-        <a href="#" className="text-light">
-          <Gear className="me-2" />
-          Settings
-        </a>
+        <NavLink
+            to="/settings"
+            className={({ isActive }) =>
+                `sidebar-link ${isActive ? "active-link" : ""}`
+            }
+        >
+            <Gear className="me-2" />
+            Settings
+        </NavLink>
 
       </div>
     </div>

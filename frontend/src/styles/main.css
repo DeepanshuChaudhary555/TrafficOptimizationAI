@@ -60,3 +60,27 @@ button {
 .sub-title {
   color: var(--text-secondary);
 }
+
+/* =========================
+   Sidebar Links
+========================= */
+
+.sidebar-link {
+    color: white;
+    text-decoration: none;
+    padding: 12px 15px;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    display: block;
+}
+
+.sidebar-link:hover {
+    background-color: #334155;
+    color: #3B82F6;
+}
+
+.active-link {
+    background-color: #3B82F6;
+    color: white !important;
+    font-weight: bold;
+}
