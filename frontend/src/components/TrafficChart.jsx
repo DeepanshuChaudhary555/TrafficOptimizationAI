@@ -7,9 +7,12 @@ import {
   Title,
   Tooltip,
   Legend,
+  Filler,
 } from "chart.js";
 
 import { Line } from "react-chartjs-2";
+
+import { trafficChartData } from "../data/chartData";
 
 ChartJS.register(
   CategoryScale,
@@ -18,40 +21,33 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 );
 
 function TrafficChart() {
-  const data = {
-    labels: [
-      "Mon",
-      "Tue",
-      "Wed",
-      "Thu",
-      "Fri",
-      "Sat",
-      "Sun",
-    ],
-
-    datasets: [
-      {
-        label: "Traffic Density",
-        data: [120, 240, 180, 310, 420, 380, 290],
-        borderColor: "#3B82F6",
-        backgroundColor: "#3B82F6",
-        tension: 0.4,
-      },
-    ],
-  };
-
   const options = {
     responsive: true,
+
+    maintainAspectRatio: false,
+
+    animation: {
+      duration: 1200,
+    },
 
     plugins: {
       legend: {
         labels: {
           color: "#F8FAFC",
         },
+      },
+
+      tooltip: {
+        backgroundColor: "#1E293B",
+        titleColor: "#F8FAFC",
+        bodyColor: "#CBD5E1",
+        borderColor: "#475569",
+        borderWidth: 1,
       },
     },
 
@@ -62,17 +58,19 @@ function TrafficChart() {
         },
 
         grid: {
-          color: "#334155",
+          color: "rgba(71, 85, 105, 0.35)",
         },
       },
 
       y: {
+        beginAtZero: true,
+
         ticks: {
           color: "#CBD5E1",
         },
 
         grid: {
-          color: "#334155",
+          color: "rgba(71, 85, 105, 0.35)",
         },
       },
     },
@@ -80,9 +78,32 @@ function TrafficChart() {
 
   return (
     <div className="card-dark p-4 h-100">
-      <h4 className="mb-4">Traffic Density</h4>
 
-      <Line data={data} options={options} />
+      <div className="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+          <h4 className="mb-1">
+            Traffic Density
+          </h4>
+
+          <small className="text-secondary">
+            Vehicle activity throughout the day
+          </small>
+        </div>
+
+        <span className="badge bg-primary">
+          Today
+        </span>
+
+      </div>
+
+      <div style={{ height: "320px" }}>
+        <Line
+          data={trafficChartData}
+          options={options}
+        />
+      </div>
+
     </div>
   );
 }

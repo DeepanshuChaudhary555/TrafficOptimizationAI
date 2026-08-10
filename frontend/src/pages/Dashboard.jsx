@@ -23,6 +23,7 @@ function Dashboard() {
             <DashboardCard
               title={stat.title}
               value={stat.value}
+              suffix={stat.suffix}
               icon={stat.icon}
               color={stat.color}
             />

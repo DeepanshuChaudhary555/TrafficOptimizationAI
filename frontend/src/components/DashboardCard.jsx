@@ -1,21 +1,61 @@
-function DashboardCard({ title, value, icon: Icon, color }) {
+import { useEffect, useState } from "react";
+
+function DashboardCard({
+  title,
+  value,
+  suffix = "",
+  icon: Icon,
+  color,
+}) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    const duration = 1000;
+    const steps = 40;
+    const increment = value / steps;
+    let current = 0;
+
+    const timer = setInterval(() => {
+      current += increment;
+
+      if (current >= value) {
+        setDisplayValue(value);
+        clearInterval(timer);
+      } else {
+        setDisplayValue(current);
+      }
+    }, duration / steps);
+
+    return () => clearInterval(timer);
+  }, [value]);
+
+  const formattedValue =
+    Number.isInteger(value)
+      ? Math.floor(displayValue)
+      : displayValue.toFixed(1);
+
   return (
     <div
-      className="card-dark p-4 h-100"
+      className="card-dark dashboard-card p-4 h-100"
       style={{
-        borderLeft: `6px solid ${color}`,
+        borderLeft: `5px solid ${color}`,
       }}
     >
       <div className="d-flex justify-content-between align-items-center">
         <div>
-          <h6 style={{ color: "#CBD5E1" }}>{title}</h6>
+          <h6 className="stat-title">
+            {title}
+          </h6>
 
-          <h2 style={{ fontWeight: "bold" }}>{value}</h2>
+          <h2 className="stat-value">
+            {formattedValue}
+            {suffix}
+          </h2>
         </div>
 
         <div
+          className="stat-icon"
           style={{
-            fontSize: "45px",
             color: color,
           }}
         >
