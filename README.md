@@ -10,7 +10,7 @@ A web-based intelligent traffic management system that performs data-driven lane
 
 - React (Vite)
 - Flask
-- MySQL
+- PostgreSQL
 - OpenCV
 - YOLO
 - Bootstrap
