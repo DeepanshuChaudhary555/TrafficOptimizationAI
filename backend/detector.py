@@ -1,5 +1,9 @@
 import os
+import json
 import cv2
+import numpy as np
+
+import supervision as sv
 
 from sahi import AutoDetectionModel
 from sahi.predict import get_sliced_prediction
@@ -36,66 +40,29 @@ print("YOLO26 + SAHI loaded successfully!")
 
 
 # ============================================================
-# DRAW DETECTION
+# BYTE TRACK
 # ============================================================
 
-def draw_detection(frame, prediction):
-    """
-    Draw one SAHI detection on the frame.
-    """
+tracker = sv.ByteTrack()
 
-    bbox = prediction.bbox
-
-    x1 = int(bbox.minx)
-    y1 = int(bbox.miny)
-    x2 = int(bbox.maxx)
-    y2 = int(bbox.maxy)
-
-    class_id = prediction.category.id
-    class_name = TARGET_CLASSES.get(
-        int(class_id),
-        prediction.category.name
-    )
-
-    confidence = prediction.score.value
-
-    # Draw bounding box
-    cv2.rectangle(
-        frame,
-        (x1, y1),
-        (x2, y2),
-        (0, 255, 0),
-        2,
-    )
-
-    # Label
-    label = f"{class_name} {confidence:.2f}"
-
-    cv2.putText(
-        frame,
-        label,
-        (x1, max(y1 - 8, 20)),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.5,
-        (0, 255, 0),
-        2,
-    )
+print("ByteTrack initialized successfully!")
 
 
 # ============================================================
-# VIDEO DETECTION
+# VIDEO DETECTION + TRACKING
 # ============================================================
 
-def detect_video(video_path):
+def detect_and_track_video(video_path):
 
     print()
     print("=" * 60)
-    print("STARTING SAHI VIDEO DETECTION")
+    print("STARTING SAHI + BYTE TRACK")
     print("=" * 60)
 
     print(f"Input video: {video_path}")
     print("Device: CPU")
-    print("Method: YOLO26 + SAHI")
+    print("Detector: YOLO26n + SAHI")
+    print("Tracker: ByteTrack")
     print()
 
     # --------------------------------------------------------
@@ -107,7 +74,6 @@ def detect_video(video_path):
     if not cap.isOpened():
 
         print("ERROR: Could not open video.")
-
         return
 
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -134,9 +100,14 @@ def detect_video(video_path):
         exist_ok=True
     )
 
-    output_path = os.path.join(
+    output_video = os.path.join(
         output_directory,
-        "sahi_detected_traffic.avi"
+        "tracked_traffic.avi"
+    )
+
+    output_json = os.path.join(
+        output_directory,
+        "tracking_data.json"
     )
 
     # --------------------------------------------------------
@@ -148,14 +119,22 @@ def detect_video(video_path):
     )
 
     writer = cv2.VideoWriter(
-        output_path,
+        output_video,
         fourcc,
         fps,
         (width, height)
     )
 
     # --------------------------------------------------------
-    # PROCESS FRAMES
+    # TRACKING DATA
+    # --------------------------------------------------------
+
+    tracking_data = []
+
+    unique_track_ids = set()
+
+    # --------------------------------------------------------
+    # PROCESS VIDEO
     # --------------------------------------------------------
 
     frame_number = 0
@@ -175,28 +154,31 @@ def detect_video(video_path):
             end=""
         )
 
-        # ----------------------------------------------------
-        # SAHI SLICED INFERENCE
-        # ----------------------------------------------------
+        # ====================================================
+        # SAHI DETECTION
+        # ====================================================
 
         result = get_sliced_prediction(
             frame,
             detection_model,
 
-            # Size of each slice
             slice_height=512,
             slice_width=512,
 
-            # Overlap between neighboring slices
             overlap_height_ratio=0.20,
             overlap_width_ratio=0.20,
 
             verbose=0,
         )
 
-        # ----------------------------------------------------
-        # DRAW ONLY OUR TARGET CLASSES
-        # ----------------------------------------------------
+        # ====================================================
+        # CONVERT SAHI PREDICTIONS
+        # TO SUPERVISION DETECTIONS
+        # ====================================================
+
+        boxes = []
+        confidences = []
+        class_ids = []
 
         for prediction in result.object_prediction_list:
 
@@ -204,33 +186,196 @@ def detect_video(video_path):
                 prediction.category.id
             )
 
-            if class_id in TARGET_CLASSES:
+            # Keep only our target classes
+            if class_id not in TARGET_CLASSES:
+                continue
 
-                draw_detection(
-                    frame,
-                    prediction
-                )
+            bbox = prediction.bbox.to_xyxy()
+
+            boxes.append(bbox)
+
+            confidences.append(
+                float(prediction.score.value)
+            )
+
+            class_ids.append(class_id)
 
         # ----------------------------------------------------
-        # WRITE PROCESSED FRAME
+        # NO DETECTIONS
+        # ----------------------------------------------------
+
+        if len(boxes) == 0:
+
+            writer.write(frame)
+            continue
+
+        # ----------------------------------------------------
+        # CREATE SUPERVISION DETECTIONS
+        # ----------------------------------------------------
+
+        detections = sv.Detections(
+            xyxy=np.array(
+                boxes,
+                dtype=np.float32
+            ),
+
+            confidence=np.array(
+                confidences,
+                dtype=np.float32
+            ),
+
+            class_id=np.array(
+                class_ids,
+                dtype=int
+            ),
+        )
+
+        # ====================================================
+        # BYTE TRACK
+        # ====================================================
+
+        tracked_detections = tracker.update_with_detections(
+            detections
+        )
+
+        # ====================================================
+        # DRAW TRACKED OBJECTS
+        # ====================================================
+
+        for i in range(
+            len(tracked_detections)
+        ):
+
+            tracker_id = tracked_detections.tracker_id[i]
+
+            if tracker_id is None:
+                continue
+
+            tracker_id = int(tracker_id)
+
+            class_id = int(
+                tracked_detections.class_id[i]
+            )
+
+            confidence = float(
+                tracked_detections.confidence[i]
+            )
+
+            bbox = tracked_detections.xyxy[i]
+
+            x1, y1, x2, y2 = map(
+                int,
+                bbox
+            )
+
+            class_name = TARGET_CLASSES[
+                class_id
+            ]
+
+            # ------------------------------------------------
+            # REMEMBER UNIQUE TRACK IDs
+            # ------------------------------------------------
+
+            unique_track_ids.add(
+                tracker_id
+            )
+
+            # ------------------------------------------------
+            # DRAW BOX
+            # ------------------------------------------------
+
+            cv2.rectangle(
+                frame,
+                (x1, y1),
+                (x2, y2),
+                (0, 255, 0),
+                2
+            )
+
+            # ------------------------------------------------
+            # DRAW LABEL
+            # ------------------------------------------------
+
+            label = (
+                f"ID {tracker_id} "
+                f"{class_name} "
+                f"{confidence:.2f}"
+            )
+
+            cv2.putText(
+                frame,
+                label,
+                (x1, max(y1 - 8, 20)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (0, 255, 0),
+                2
+            )
+
+            # ------------------------------------------------
+            # SAVE TRACK DATA
+            # ------------------------------------------------
+
+            tracking_data.append({
+                "frame": frame_number,
+                "track_id": tracker_id,
+                "class_id": class_id,
+                "class_name": class_name,
+                "confidence": round(
+                    confidence,
+                    4
+                ),
+                "x1": x1,
+                "y1": y1,
+                "x2": x2,
+                "y2": y2
+            })
+
+        # ----------------------------------------------------
+        # WRITE FRAME
         # ----------------------------------------------------
 
         writer.write(frame)
 
-    # --------------------------------------------------------
+    # ========================================================
     # CLEANUP
-    # --------------------------------------------------------
+    # ========================================================
 
     cap.release()
     writer.release()
 
+    # ========================================================
+    # SAVE TRACKING DATA
+    # ========================================================
+
+    with open(
+        output_json,
+        "w",
+        encoding="utf-8"
+    ) as file:
+
+        json.dump(
+            tracking_data,
+            file,
+            indent=2
+        )
+
     print()
     print()
     print("=" * 60)
-    print("SAHI DETECTION COMPLETED")
+    print("TRACKING COMPLETED")
     print("=" * 60)
-    print(f"Output saved to:")
-    print(output_path)
+
+    print(f"Tracked unique objects: {len(unique_track_ids)}")
+
+    print()
+    print("Output video:")
+    print(output_video)
+
+    print()
+    print("Tracking data:")
+    print(output_json)
+
     print()
 
 
@@ -242,7 +387,8 @@ if __name__ == "__main__":
 
     print()
     print("=" * 60)
-    print("TrafficFlow AI - SAHI Traffic Detector")
+    print("TrafficFlow AI")
+    print("YOLO26 + SAHI + ByteTrack")
     print("=" * 60)
 
     video_filename = "857004-hd_1280_720_30fps.mp4"
@@ -263,4 +409,6 @@ if __name__ == "__main__":
         print()
         print("Video found successfully!")
 
-        detect_video(video_path)
+        detect_and_track_video(
+            video_path
+        )
