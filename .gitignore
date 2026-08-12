@@ -72,3 +72,12 @@ uploads/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# AI / YOLO generated files
+runs/
+processed_videos/
+backend/uploads/
+uploads/
+
+# YOLO model weights
+*.pt
